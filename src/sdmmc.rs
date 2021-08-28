@@ -244,6 +244,29 @@ where
         result.map(move |()| BlockSpi(self))
     }
 
+    /// Perform an operation on a block device, using default options.
+    pub fn with_block<F, T>(&mut self, func: F) -> Result<T, Error>
+    where
+        F: FnOnce(&mut BlockSpi<SPI, CS>) -> T,
+    {
+        self.with_block_and_opts(func, Default::default())
+    }
+
+    /// Perform an operation on a block device.
+    /// The block device will be initialized and reldeinitialized as needed,
+    /// and errors forwarded.
+    pub fn with_block_and_opts<F, T>(&mut self, func: F, options: AcquireOpts) -> Result<T, Error>
+    where
+        F: FnOnce(&mut BlockSpi<SPI, CS>) -> T,
+    {
+        let mut block = self.acquire_with_opts(options)?;
+        let ret = func(&mut block);
+        // Not stictly needed, but it serves as a reminder to fix this code
+        // if deinit() ever gains the ability to throw errors.
+        block.deinit();
+        Ok(ret)
+    }
+
     /// Perform a function that might error with the chipselect low.
     /// Always releases the chipselect, even if the function errors.
     fn with_chip_select_mut<F, T>(&self, func: F) -> Result<T, Error>
